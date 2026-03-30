@@ -3,9 +3,11 @@
 #include <EGL/egl.h>
 #include <android_native_app_glue.h>
 
+// Fungsi yang diekspor dari Rust
 extern void set_rust_touch(float x, float y);
-extern float get_box_x();
-extern float get_box_y();
+extern void update_physics();
+extern float get_box_x(int i);
+extern float get_box_y(int i);
 extern float get_rust_color_r(float t);
 
 struct engine {
@@ -30,24 +32,31 @@ static int32_t handle_input(struct android_app* app, AInputEvent* event) {
 }
 
 static void draw_frame(struct engine* eng) {
-    // Validasi super ketat agar tidak SIGSEGV
     if (eng->display == EGL_NO_DISPLAY || eng->surface == EGL_NO_SURFACE) return;
+
+    // 1. Minta Rust menghitung posisi baru untuk semua kotak
+    update_physics();
 
     int32_t w = ANativeWindow_getWidth(eng->app->window);
     int32_t h = ANativeWindow_getHeight(eng->app->window);
     if (w <= 0 || h <= 0) return;
 
-    glClearColor(get_rust_color_r(eng->tick), 0.1f, 0.2f, 1.0f);
+    // 2. Gambar Background (Warna gradasi halus dari Rust)
+    glClearColor(get_rust_color_r(eng->tick), 0.1f, 0.15f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
+    // 3. Gambar 100 Kotak Interaktif
     glEnable(GL_SCISSOR_TEST);
-    int box_size = 200;
-    int bx = (int)(get_box_x() * w) - (box_size / 2);
-    int by = (int)((1.0f - get_box_y()) * h) - (box_size / 2);
-    
-    glScissor(bx, by, box_size, box_size);
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    for(int i = 0; i < 100; i++) {
+        // Ambil koordinat hasil hitungan Rust
+        int bx = (int)(get_box_x(i) * w) - 15;
+        int by = (int)((1.0f - get_box_y(i)) * h) - 15; 
+        
+        // Gambar kotak kecil ukuran 30x30 pixel
+        glScissor(bx, by, 30, 30);
+        glClearColor(0.0f, 0.8f, 1.0f, 1.0f); // Warna Biru Muda/Cyan
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
     glDisable(GL_SCISSOR_TEST);
 
     eglSwapBuffers(eng->display, eng->surface);
@@ -70,7 +79,6 @@ static void handle_cmd(struct android_app* app, int32_t cmd) {
             }
             break;
         case APP_CMD_TERM_WINDOW:
-            // Bersihkan agar tidak mencoba draw saat window hilang
             eng->display = EGL_NO_DISPLAY;
             eng->surface = EGL_NO_SURFACE;
             break;
@@ -90,7 +98,6 @@ void android_main(struct android_app* state) {
     while (1) {
         int id, ev;
         struct android_poll_source* src;
-        // Gunakan timeout -1 saat tidak ada display agar CPU istirahat
         while ((id = ALooper_pollOnce(eng.display != EGL_NO_DISPLAY ? 0 : -1, NULL, &ev, (void**)&src)) >= 0) {
             if (src != NULL) src->process(state, src);
             if (state->destroyRequested != 0) return;
