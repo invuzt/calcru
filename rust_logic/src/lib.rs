@@ -24,29 +24,30 @@ pub extern "C" fn set_rust_touch(id: i32, x: f32, y: f32) {
 pub extern "C" fn update_physics() {
     unsafe {
         for i in 0..COUNT {
-            BOXES_X[i] += VEL_X[i];
-            BOXES_Y[i] += VEL_Y[i];
+            let mut force_x = 0.0;
+            let mut force_y = 0.0;
 
             for t in 0..MAX_TOUCH {
                 if TOUCH_X[t] < 0.0 { continue; }
                 let dx = TOUCH_X[t] - BOXES_X[i];
                 let dy = TOUCH_Y[t] - BOXES_Y[i];
                 let dist = (dx*dx + dy*dy).sqrt();
-                if dist < 0.2 {
-                    VEL_X[i] += dx * 0.005;
-                    VEL_Y[i] += dy * 0.005;
+                if dist < 0.3 {
+                    force_x += dx * 0.005;
+                    force_y += dy * 0.005;
                 }
             }
-            VEL_X[i] *= 0.95;
-            VEL_Y[i] *= 0.95;
             
-            // Batas layar agar tidak hilang
-            if BOXES_X[i] < 0.0 || BOXES_X[i] > 1.0 { VEL_X[i] *= -1.0; }
-            if BOXES_Y[i] < 0.0 || BOXES_Y[i] > 1.0 { VEL_Y[i] *= -1.0; }
+            VEL_X[i] = (VEL_X[i] + force_x) * 0.92;
+            VEL_Y[i] = (VEL_Y[i] + force_y) * 0.92;
+            BOXES_X[i] += VEL_X[i];
+            BOXES_Y[i] += VEL_Y[i];
         }
     }
 }
 
 #[no_mangle] pub extern "C" fn get_box_x(i: i32) -> f32 { unsafe { BOXES_X[i as usize] } }
 #[no_mangle] pub extern "C" fn get_box_y(i: i32) -> f32 { unsafe { BOXES_Y[i as usize] } }
-#[no_mangle] pub extern "C" fn get_rust_color_r(t: f32) -> f32 { (t * 0.1).cos().abs() * 0.2 }
+#[no_mangle] pub extern "C" fn get_touch_x(i: i32) -> f32 { unsafe { TOUCH_X[i as usize] } }
+#[no_mangle] pub extern "C" fn get_touch_y(i: i32) -> f32 { unsafe { TOUCH_Y[i as usize] } }
+#[no_mangle] pub extern "C" fn get_rust_color_r(t: f32) -> f32 { (t * 0.05).sin().abs() * 0.1 }
