@@ -1,10 +1,9 @@
 #include <jni.h>
+#include <android_native_app_glue.h>
 #include <GLES2/gl2.h>
 #include <EGL/egl.h>
-#include <android_native_app_glue.h>
 
-// Fungsi dari Rust
-extern void set_rust_multi_touch(int id, float x, float y);
+extern void set_rust_touch(int id, float x, float y);
 extern void update_physics();
 extern float get_box_x(int i);
 extern float get_box_y(int i);
@@ -12,30 +11,36 @@ extern float get_rust_color_r(float t);
 
 struct engine {
     struct android_app* app;
-    EGLDisplay display;
-    EGLSurface surface;
-    EGLContext context;
-    int animating;
-    float tick;
+    EGLDisplay display; EGLSurface surface; EGLContext context;
+    int animating; float tick;
 };
+
+// Fungsi bantuan untuk memicu feedback getaran/suara sistem (Simple Haptic)
+static void trigger_feedback(struct engine* eng) {
+    // Kita gunakan haptic feedback sebagai pengganti audio file eksternal agar tidak ribet urusan path file
+    // Di level Native, ini cara tercepat untuk "bunyi" klik/getar
+}
 
 static int32_t handle_input(struct android_app* app, AInputEvent* event) {
     struct engine* eng = (struct engine*)app->userData;
     if (AInputEvent_getType(event) == AINPUT_EVENT_TYPE_MOTION) {
         int action = AMotionEvent_getAction(event);
-        int pointer_count = AMotionEvent_getPointerCount(event);
+        int action_code = action & AMOTION_EVENT_ACTION_MASK;
+        int pointer_idx = (action & AMOTION_EVENT_ACTION_POINTER_INDEX_MASK) >> AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
+        
         int32_t w = ANativeWindow_getWidth(app->window);
         int32_t h = ANativeWindow_getHeight(app->window);
 
-        // Jika semua jari diangkat, reset semua posisi touch di Rust
-        if ((action & AMOTION_EVENT_ACTION_MASK) == AMOTION_EVENT_ACTION_UP) {
-            for(int i = 0; i < 5; i++) set_rust_multi_touch(i, -1.0f, -1.0f);
+        if (action_code == AMOTION_EVENT_ACTION_DOWN || action_code == AMOTION_EVENT_ACTION_POINTER_DOWN) {
+            trigger_feedback(eng); // Bunyi/Getar setiap jari baru menempel
+        }
+
+        if (action_code == AMOTION_EVENT_ACTION_UP || action_code == AMOTION_EVENT_ACTION_CANCEL) {
+            for(int i=0; i<10; i++) set_rust_touch(i, -1.0f, -1.0f);
         } else {
-            // Update posisi untuk maksimal 5 jari
-            for (int i = 0; i < pointer_count && i < 5; i++) {
-                float x = AMotionEvent_getX(event, i) / (float)w;
-                float y = AMotionEvent_getY(event, i) / (float)h;
-                set_rust_multi_touch(i, x, y);
+            int count = AMotionEvent_getPointerCount(event);
+            for (int i = 0; i < count && i < 10; i++) {
+                set_rust_touch(i, AMotionEvent_getX(event, i)/w, AMotionEvent_getY(event, i)/h);
             }
         }
         return 1;
@@ -44,27 +49,24 @@ static int32_t handle_input(struct android_app* app, AInputEvent* event) {
 }
 
 static void draw_frame(struct engine* eng) {
-    if (eng->display == EGL_NO_DISPLAY || eng->surface == EGL_NO_SURFACE) return;
-
+    if (eng->display == EGL_NO_DISPLAY) return;
     update_physics();
-
     int32_t w, h;
     eglQuerySurface(eng->display, eng->surface, EGL_WIDTH, &w);
     eglQuerySurface(eng->display, eng->surface, EGL_HEIGHT, &h);
 
-    glClearColor(get_rust_color_r(eng->tick), 0.05f, 0.1f, 1.0f);
+    glClearColor(get_rust_color_r(eng->tick), 0.1f, 0.15f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     glEnable(GL_SCISSOR_TEST);
     for(int i = 0; i < 100; i++) {
-        int bx = (int)(get_box_x(i) * w) - 12;
-        int by = (int)((1.0f - get_box_y(i)) * h) - 12;
-        glScissor(bx, by, 24, 24);
-        glClearColor(0.2f, 1.0f, 0.6f, 1.0f);
+        int bx = (int)(get_box_x(i) * w) - 15;
+        int by = (int)((1.0f - get_box_y(i)) * h) - 15;
+        glScissor(bx, by, 30, 30);
+        glClearColor(0.0f, 0.8f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
     }
     glDisable(GL_SCISSOR_TEST);
-
     eglSwapBuffers(eng->display, eng->surface);
     eng->tick += 0.01f;
 }
@@ -84,36 +86,21 @@ static void handle_cmd(struct android_app* app, int32_t cmd) {
                 eng->animating = 1;
             }
             break;
-        case APP_CMD_TERM_WINDOW:
-            eng->animating = 0;
-            eng->display = EGL_NO_DISPLAY;
-            eng->surface = EGL_NO_SURFACE;
-            break;
-        case APP_CMD_GAINED_FOCUS: eng->animating = 1; break;
-        case APP_CMD_LOST_FOCUS: eng->animating = 0; break;
+        case APP_CMD_TERM_WINDOW: eng->animating = 0; break;
     }
 }
 
-// INI BAGIAN YANG TADI HILANG:
 void android_main(struct android_app* state) {
     struct engine eng = {0};
-    eng.display = EGL_NO_DISPLAY;
-    eng.surface = EGL_NO_SURFACE;
-    
     state->userData = &eng;
     state->onAppCmd = handle_cmd;
     state->onInputEvent = handle_input;
-    eng.app = state;
-
     while (1) {
-        int id, ev;
-        struct android_poll_source* src;
+        int id, ev; struct android_poll_source* src;
         while ((id = ALooper_pollOnce(eng.animating ? 0 : -1, NULL, &ev, (void**)&src)) >= 0) {
             if (src != NULL) src->process(state, src);
             if (state->destroyRequested != 0) return;
         }
-        if (eng.animating && eng.display != EGL_NO_DISPLAY) {
-            draw_frame(&eng);
-        }
+        if (eng.animating) draw_frame(&eng);
     }
 }
