@@ -1,4 +1,4 @@
-name: Build Zamera Hybrid
+name: Build Cakru Hybrid
 on: [push]
 
 jobs:
@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -16,21 +16,19 @@ jobs:
         run: |
           cd rust_logic
           cargo build --target aarch64-linux-android --release
-          cp target/aarch64-linux-android/release/libzamera_core.a ../jni/
+          cp target/aarch64-linux-android/release/libcakru_core.a ../jni/
 
       - name: Generate Debug Keystore
         run: |
-          # JANGAN SAMPAI LEWAT: Bikin kunci buat tanda tangan APK
-          keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Zamera, OU=Dev, O=Zamera, L=Ponorogo, S=EastJava, C=ID"
+          keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Cakru, OU=Dev, O=Cakru, L=Ponorogo, S=EastJava, C=ID"
 
       - name: Build Final APK
         run: |
           NDK_PATH=$(ls -d $ANDROID_SDK_ROOT/ndk/* | head -n 1)
-          # Makefile akan memanggil apksigner yang butuh debug.keystore tadi
           make NDK_PATH=$NDK_PATH
-          
-      - name: Upload Zamera APK
+
+      - name: Upload Cakru APK
         uses: actions/upload-artifact@v4
         with:
-          name: Zamera-Hybrid-Final
-          path: "zamera-final.apk"
+          name: Cakru-Hybrid-Final
+          path: "cakru-final.apk"

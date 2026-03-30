@@ -1,10 +1,10 @@
 [package]
-name = "zamera_core"
+name = "cakru_core"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "zamera_core"
+name = "cakru_core"
 crate-type = ["staticlib"] # Kita buat static agar menyatu dengan C
 
 [dependencies]
