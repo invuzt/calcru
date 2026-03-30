@@ -10,7 +10,7 @@
         android:label="Cakru"
         android:exported="true"
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
-        android:screenOrientation="landscape"
+        android:screenOrientation="portrait"
         android:configChanges="orientation|keyboardHidden|screenSize">
     <meta-data android:name="android.app.lib_name" android:value="hello" />
     <intent-filter>
