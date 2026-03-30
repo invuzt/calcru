@@ -13,9 +13,13 @@ static mut INITIALIZED: bool = false;
 fn init() {
     unsafe {
         for i in 0..COUNT {
-            BOXES_X[i] = (i as f32 * 1.7) % 1.0;
-            BOXES_Y[i] = (i as f32 * 3.3) % 1.0;
-            VEL_X[i] = 0.008 + (i as f32 * 0.00001);
+            // Posisi X diacak sedikit agar tidak terlalu kaku
+            BOXES_X[i] = (i as f32 * 0.73) % 1.0;
+            // Posisi Y didistribusikan SECARA RATA dari atas sampai bawah (Rapat!)
+            BOXES_Y[i] = i as f32 / COUNT as f32;
+            
+            // Kecepatan angin dasar (ke kanan)
+            VEL_X[i] = 0.006 + (i as f32 * 0.00001);
             VEL_Y[i] = 0.0;
         }
         INITIALIZED = true;
@@ -38,26 +42,32 @@ pub extern "C" fn update_physics() {
                 let dist_sq = dx*dx + dy*dy;
                 let dist = dist_sq.sqrt();
                 
-                if dist < 0.2 {
-                    let force = 0.0008 / (dist + 0.02);
+                if dist < 0.22 {
+                    let force = 0.0006 / (dist + 0.015);
+                    // Tolakan kuat agar lubang terlihat jelas
                     VEL_X[i] += (dx / dist) * force;
                     VEL_Y[i] += (dy / dist) * force;
-                    // Efek Vortex (Putaran)
-                    VEL_X[i] -= (dy / dist) * force * 0.4;
-                    VEL_Y[i] += (dx / dist) * force * 0.4;
+                    // Vortex (Putaran) halus
+                    VEL_X[i] -= (dy / dist) * force * 0.3;
+                    VEL_Y[i] += (dx / dist) * force * 0.3;
                 }
             }
             
             BOXES_X[i] += VEL_X[i];
             BOXES_Y[i] += VEL_Y[i];
             
-            VEL_X[i] = VEL_X[i] * 0.94 + 0.007 * 0.06;
-            VEL_Y[i] *= 0.94;
+            // Kembalikan VEL_X ke kecepatan dasar
+            VEL_X[i] = VEL_X[i] * 0.96 + 0.0055 * 0.04;
+            VEL_Y[i] *= 0.94; // Redaman Y agar kembali lurus
 
+            // Reset Partikel yang keluar layar (Looping)
             if BOXES_X[i] > 1.05 { 
                 BOXES_X[i] = -0.05; 
-                BOXES_Y[i] = (i as f32 * 17.7) % 1.0;
+                // Y tetap sama agar tetap rapat
             }
+            // Batas Y atas bawah yang ketat
+            if BOXES_Y[i] < 0.0 { BOXES_Y[i] = 0.0; VEL_Y[i] *= -0.5; }
+            if BOXES_Y[i] > 1.0 { BOXES_Y[i] = 1.0; VEL_Y[i] *= -0.5; }
         }
     }
 }
