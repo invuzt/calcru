@@ -1,20 +1,35 @@
 use std::fs;
+use std::io::{Read, Write};
+use std::sync::atomic::{AtomicI32, Ordering};
 
-// Fungsi pembantu untuk membaca angka dari file sistem
-fn read_sys_file(path: &str) -> f32 {
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|s| s.trim().parse::<f32>().ok())
-        .unwrap_or(0.0)
+static STOK: AtomicI32 = AtomicI32::new(0);
+const PATH: &str = "/data/user/0/com.cakru.dodge/files/stok.txt";
+
+#[no_mangle]
+pub extern "C" fn save_stok() {
+    let val = STOK.load(Ordering::SeqCst);
+    if let Ok(mut f) = fs::File::create(PATH) {
+        let _ = f.write_all(val.to_string().as_bytes());
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn load_stok() {
+    if let Ok(mut f) = fs::File::open(PATH) {
+        let mut s = String::new();
+        if f.read_to_string(&mut s).is_ok() {
+            if let Ok(n) = s.trim().parse::<i32>() {
+                STOK.store(n, Ordering::SeqCst);
+            }
+        }
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn get_cpu_usage() -> f32 {
-    // Simulasi beban CPU (karena pembacaan /proc/stat butuh kalkulasi delta)
-    // Kita buat dummy dulu yang bergerak pelan agar terlihat realtime
     use std::time::{SystemTime, UNIX_EPOCH};
     let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
-    ((t % 1000) as f32 / 1000.0) // Bar akan berdenyut
+    (t % 1000) as f32 / 1000.0
 }
 
 #[no_mangle]
@@ -37,18 +52,25 @@ pub extern "C" fn get_ram_usage() -> f32 {
 
 #[no_mangle]
 pub extern "C" fn get_bat_level() -> f32 {
-    read_sys_file("/sys/class/power_supply/battery/capacity") / 100.0
+    fs::read_to_string("/sys/class/power_supply/battery/capacity")
+        .ok()
+        .and_then(|s| s.trim().parse::<f32>().ok())
+        .map(|v| v / 100.0)
+        .unwrap_or(0.5)
 }
 
 #[no_mangle]
 pub extern "C" fn get_temp_level() -> f32 {
-    // Biasanya suhu baterai dalam miliderajat (misal 35000 = 35C)
-    // Kita batasi range 20C (0.0) sampai 60C (1.0)
-    let temp = read_sys_file("/sys/class/power_supply/battery/temp") / 1000.0;
+    let temp = fs::read_to_string("/sys/class/power_supply/battery/temp")
+        .ok()
+        .and_then(|s| s.trim().parse::<f32>().ok())
+        .unwrap_or(300.0) / 10.0; // Miliderajat ke Derajat
     ((temp - 20.0) / 40.0).clamp(0.0, 1.0)
 }
 
-// Stub agar tidak error linker
+// Fungsi dummy agar Makefile lama tidak protes
 #[no_mangle] pub extern "C" fn update_game(_x: f32) -> i32 { 0 }
 #[no_mangle] pub extern "C" fn get_stok() -> i32 { 0 }
 #[no_mangle] pub extern "C" fn check_game_over() -> i32 { 0 }
+#[no_mangle] pub extern "C" fn tambah_stok() {}
+#[no_mangle] pub extern "C" fn kurangi_stok() {}
