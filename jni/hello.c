@@ -34,23 +34,23 @@ static int init_display(struct engine* engine) {
 
     eglInitialize(display, 0, 0);
     eglChooseConfig(display, attribs, &config, 1, &numConfigs);
-    eglGetConfig_attrib(display, config, EGL_NATIVE_VISUAL_ID, &format);
+    
+    // PERBAIKAN DI SINI: Nama fungsi yang benar adalah eglGetConfigAttrib
+    eglGetConfigAttrib(display, config, EGL_NATIVE_VISUAL_ID, &format);
 
     ANativeWindow_setBuffersGeometry(engine->app->window, 0, 0, format);
 
-    EGLSurface surface = eglCreateWindowSurface(display, config, engine->app->window, NULL);
-    EGLContext context = eglCreateContext(display, config, NULL, (EGLint[]){EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE});
+    engine->surface = eglCreateWindowSurface(display, config, engine->app->window, NULL);
+    engine->context = eglCreateContext(display, config, NULL, (EGLint[]){EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE});
 
-    if (eglMakeCurrent(display, surface, surface, context) == EGL_FALSE) return -1;
+    if (eglMakeCurrent(display, engine->surface, engine->surface, engine->context) == EGL_FALSE) return -1;
 
     engine->display = display;
-    engine->surface = surface;
-    engine->context = context;
     return 0;
 }
 
 static void draw_frame(struct engine* engine) {
-    if (engine->display == NULL) return;
+    if (engine->display == NULL || engine->surface == NULL) return;
 
     int32_t w, h;
     eglQuerySurface(engine->display, engine->surface, EGL_WIDTH, &w);
@@ -80,7 +80,10 @@ static int32_t handle_input(struct android_app* app, AInputEvent* event) {
     struct engine* engine = (struct engine*)app->userData;
     if (AInputEvent_getType(event) == AINPUT_EVENT_TYPE_MOTION) {
         int32_t w = ANativeWindow_getWidth(app->window);
-        engine->last_touch_x = AMotionEvent_getX(event, 0) / w;
+        // Pastikan lebar tidak nol untuk menghindari pembagian dengan nol
+        if (w > 0) {
+            engine->last_touch_x = AMotionEvent_getX(event, 0) / (float)w;
+        }
         return 1;
     }
     return 0;
@@ -93,7 +96,6 @@ static void handle_cmd(struct android_app* app, int32_t cmd) {
             if (app->window != NULL) {
                 init_display(engine);
                 engine->animating = 1;
-                draw_frame(engine);
             }
             break;
         case APP_CMD_TERM_WINDOW:
