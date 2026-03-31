@@ -1,22 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.cakru.app">
+    package="com.cakru.dodge">
 
-<uses-sdk android:minSdkVersion="23" android:targetSdkVersion="34" />
+    <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="34" />
 
-<application android:label="Cakru">
-    <activity
-        android:name="android.app.NativeActivity"
-        android:label="Cakru"
-        android:exported="true"
-        android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
-        android:screenOrientation="portrait"
-        android:configChanges="orientation|keyboardHidden|screenSize">
-    <meta-data android:name="android.app.lib_name" android:value="hello" />
-    <intent-filter>
-        <action android:name="android.intent.action.MAIN" />
-        <category android:name="android.intent.category.LAUNCHER" />
-    </intent-filter>
-</activity>
+    <application 
+        android:label="Cakru" 
+        android:hasCode="true">
+        
+        <activity
+            android:name=".MainActivity"
+            android:label="Cakru"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|keyboardHidden|screenSize">
+            
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>
