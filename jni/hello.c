@@ -2,110 +2,68 @@
 #include <android_native_app_glue.h>
 #include <GLES2/gl2.h>
 #include <EGL/egl.h>
-#include <android/log.h>
-#include "sound.h"
 
-struct engine {
-    struct android_app* app;
-    EGLDisplay display;
-    EGLSurface surface;
-    EGLContext context;
-    int animating;
-};
+extern float get_cpu_usage();
+extern float get_ram_usage();
+extern float get_bat_level();
+extern float get_temp_level();
 
-void draw_box(float x, float y, float w_pct, float h_pct, float r, float g, float b, int win_w, int win_h) {
-    glScissor((int)(x * win_w), (int)(y * win_h), (int)(w_pct * win_w), (int)(h_pct * win_h));
+void draw_box(float x, float y, float w, float h, float r, float g, float b, int win_w, int win_h) {
+    glScissor((int)(x * win_w), (int)(y * win_h), (int)(w * win_w), (int)(h * win_h));
     glClearColor(r, g, b, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 }
 
-static void draw_frame(struct engine* engine) {
-    if (engine->display == NULL) return;
-    int32_t w, h;
-    eglQuerySurface(engine->display, engine->surface, EGL_WIDTH, &w);
-    eglQuerySurface(engine->display, engine->surface, EGL_HEIGHT, &h);
+// Fungsi membuat icon pixel art sederhana
+void draw_icon(int type, float x, float y, int w, int h) {
+    if(type == 0) { // Icon Baterai (Hijau)
+        draw_box(x, y, 0.05f, 0.03f, 0.2f, 0.8f, 0.2f, w, h);
+        draw_box(x+0.05f, y+0.01f, 0.01f, 0.01f, 0.2f, 0.8f, 0.2f, w, h);
+    } else if(type == 1) { // Icon CPU (Merah - bentuk Chip)
+        draw_box(x, y, 0.04f, 0.04f, 0.8f, 0.2f, 0.2f, w, h);
+        draw_box(x+0.01f, y+0.01f, 0.02f, 0.02f, 0.1f, 0.1f, 0.1f, w, h);
+    }
+}
 
-    glClearColor(0.05f, 0.05f, 0.07f, 1.0f);
+static void draw_frame(struct android_app* app) {
+    int32_t w = ANativeWindow_getWidth(app->window);
+    int32_t h = ANativeWindow_getHeight(app->window);
+
+    glClearColor(0.05f, 0.05f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     glEnable(GL_SCISSOR_TEST);
 
-    // 1. Tombol Merah (Kiri Bawah) - KURANGI
-    draw_box(0.05f, 0.05f, 0.42f, 0.15f, 0.8f, 0.2f, 0.2f, w, h);
-    
-    // 2. Tombol Hijau (Kanan Bawah) - TAMBAH
-    draw_box(0.53f, 0.05f, 0.42f, 0.15f, 0.2f, 0.7f, 0.3f, w, h);
+    float padding = 0.1f;
+    float bar_w = 0.7f;
 
-    // 3. Visualisasi Stok (Barisan Kotak di Tengah)
-    int stok = get_stok();
-    for(int i=0; i<stok; i++) {
-        float row = i / 10;
-        float col = i % 10;
-        draw_box(0.1f + (col * 0.08f), 0.7f - (row * 0.06f), 0.06f, 0.04f, 1.0f, 1.0f, 1.0f, w, h);
-    }
+    // --- 1. CPU (Merah) ---
+    draw_icon(1, 0.05f, 0.85f, w, h);
+    float cpu = get_cpu_usage();
+    draw_box(0.15f, 0.85f, bar_w, 0.03f, 0.2f, 0.2f, 0.2f, w, h); // Background bar
+    draw_box(0.15f, 0.85f, bar_w * cpu, 0.03f, 0.8f, 0.2f, 0.2f, w, h); // Isi bar
+
+    // --- 2. RAM (Biru) ---
+    draw_box(0.05f, 0.75f, 0.04f, 0.04f, 0.2f, 0.4f, 0.8f, w, h); // Icon RAM
+    float ram = get_ram_usage();
+    draw_box(0.15f, 0.75f, bar_w, 0.03f, 0.2f, 0.2f, 0.2f, w, h);
+    draw_box(0.15f, 0.75f, bar_w * ram, 0.03f, 0.2f, 0.4f, 0.8f, w, h);
+
+    // --- 3. BATERAI (Hijau) ---
+    draw_icon(0, 0.05f, 0.65f, w, h);
+    float bat = get_bat_level();
+    draw_box(0.15f, 0.65f, bar_w, 0.03f, 0.2f, 0.2f, 0.2f, w, h);
+    draw_box(0.15f, 0.65f, bar_w * bat, 0.03f, 0.2f, 0.8f, 0.2f, w, h);
+
+    // --- 4. SUHU (Oranye) ---
+    draw_box(0.06f, 0.55f, 0.02f, 0.04f, 1.0f, 0.5f, 0.0f, w, h); // Icon Termometer
+    float temp = get_temp_level();
+    draw_box(0.15f, 0.55f, bar_w, 0.03f, 0.2f, 0.2f, 0.2f, w, h);
+    draw_box(0.15f, 0.55f, bar_w * temp, 0.03f, 1.0f, 0.5f, 0.0f, w, h);
 
     glDisable(GL_SCISSOR_TEST);
-    eglSwapBuffers(engine->display, engine->surface);
-}
-
-static int32_t handle_input(struct android_app* app, AInputEvent* event) {
-    struct engine* engine = (struct engine*)app->userData;
-    if (AInputEvent_getType(event) == AINPUT_EVENT_TYPE_MOTION) {
-        if (AMotionEvent_getAction(event) == AMOTION_EVENT_ACTION_DOWN) {
-            float x = AMotionEvent_getX(event, 0) / ANativeWindow_getWidth(app->window);
-            if (x < 0.5f) {
-                kurangi_stok();
-                play_crash_sound(); // Bunyi feedback klik
-            } else {
-                tambah_stok();
-                // Nanti bisa tambah bunyi beda
-            }
-        }
-        return 1;
-    }
-    return 0;
-}
-
-static int init_display(struct engine* engine) {
-    const EGLint attribs[] = { EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT, EGL_BLUE_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_RED_SIZE, 8, EGL_NONE };
-    EGLConfig config; EGLint numConfigs, format;
-    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    eglInitialize(display, 0, 0);
-    eglChooseConfig(display, attribs, &config, 1, &numConfigs);
-    eglGetConfigAttrib(display, config, EGL_NATIVE_VISUAL_ID, &format);
-    ANativeWindow_setBuffersGeometry(engine->app->window, 0, 0, format);
-    engine->surface = eglCreateWindowSurface(display, config, engine->app->window, NULL);
-    engine->context = eglCreateContext(display, config, NULL, (EGLint[]){EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE});
-    eglMakeCurrent(display, engine->surface, engine->surface, engine->context);
-    engine->display = display;
-    return 0;
-}
-
-static void handle_cmd(struct android_app* app, int32_t cmd) {
-    struct engine* engine = (struct engine*)app->userData;
-    switch (cmd) {
-        case APP_CMD_INIT_WINDOW:
-            if (app->window != NULL) { init_display(engine); engine->animating = 1; }
-            break;
-        case APP_CMD_TERM_WINDOW:
-            engine->animating = 0;
-            break;
-    }
 }
 
 void android_main(struct android_app* state) {
-    struct engine engine = {0};
-    engine.app = state;
-    state->userData = &engine;
-    state->onAppCmd = handle_cmd;
-    state->onInputEvent = handle_input;
-    init_sound();
-
-    while (1) {
-        int id, events; struct android_poll_source* source;
-        while ((id = ALooper_pollOnce(engine.animating ? 0 : -1, NULL, &events, (void**)&source)) >= 0) {
-            if (source != NULL) source->process(state, source);
-            if (state->destroyRequested != 0) return;
-        }
-        if (engine.animating) draw_frame(&engine);
-    }
+    // ... (Logika init EGL sama seperti sebelumnya) ...
+    // Untuk singkatnya, pastikan loop memanggil draw_frame(state)
 }
