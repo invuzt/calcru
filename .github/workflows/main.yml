@@ -1,6 +1,8 @@
-name: Build Cakru Dodge
+name: Build Cakru Dodge Stable
 
-on: [push]
+on:
+  push:
+    branches: [ "stable-version", "main" ]
 
 jobs:
   build:
@@ -23,18 +25,19 @@ jobs:
       - name: Build Native Code (NDK)
         run: |
           NDK_PATH=$(ls -d $ANDROID_SDK_ROOT/ndk/* | tail -1)
-          $NDK_PATH/ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=jni/Android.mk NDK_APPLICATION_MK=jni/Application.mk
+          $NDK_PATH/ndk-build NDK_PROJECT_PATH=. \
+            APP_BUILD_SCRIPT=jni/Android.mk \
+            NDK_APPLICATION_MK=jni/Application.mk
 
       - name: Compile Java & Create DEX
         run: |
           BUILD_TOOLS_PATH=$(ls -d $ANDROID_SDK_ROOT/build-tools/* | tail -1)
           PLATFORM_JAR=$ANDROID_SDK_ROOT/platforms/android-34/android.jar
           
-          # 1. Compile Java pakai -cp (Bukan boot-class-path)
           mkdir -p obj/java
-          javac -d obj/java -cp $PLATFORM_JAR src/com/cakru/dodge/MainActivity.java
-          
-          # 2. Ubah Class ke classes.dex
+          find src -name "*.java" > java_files.txt
+          javac -d obj/java -cp $PLATFORM_JAR @java_files.txt
+
           $BUILD_TOOLS_PATH/d8 --release --lib $PLATFORM_JAR --output . obj/java/com/cakru/dodge/*.class
 
       - name: Assemble APK
@@ -42,34 +45,36 @@ jobs:
           BUILD_TOOLS_PATH=$(ls -d $ANDROID_SDK_ROOT/build-tools/* | tail -1)
           PLATFORM_JAR=$ANDROID_SDK_ROOT/platforms/android-34/android.jar
 
-          echo '<?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.cakru.dodge">
-              <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="34" />
-              <application android:hasCode="true" android:label="Cakru Dodge">
-                  <activity android:name=".MainActivity" android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>' > AndroidManifest.xml
-
-          mkdir -p empty_res
-          $BUILD_TOOLS_PATH/aapt package -f -M AndroidManifest.xml -I $PLATFORM_JAR -F cakru-temp.apk empty_res
+          # Persiapkan struktur folder APK
+          mkdir -p res/drawable
+          $BUILD_TOOLS_PATH/aapt package -f -M AndroidManifest.xml -I $PLATFORM_JAR -S res -F cakru-temp.apk
+          
+          # Masukkan DEX
           zip -g cakru-temp.apk classes.dex
+          
+          # Masukkan Native Libs (.so)
           mkdir -p lib/arm64-v8a
           cp libs/arm64-v8a/libhello.so lib/arm64-v8a/
-          zip -g cakru-temp.apk lib/arm64-v8a/libhello.so
+          zip -rg cakru-temp.apk lib/
 
-      - name: Sign APK
+      - name: Sign & Align APK
         run: |
-          keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Cakru"
           BUILD_TOOLS_PATH=$(ls -d $ANDROID_SDK_ROOT/build-tools/* | tail -1)
-          $BUILD_TOOLS_PATH/apksigner sign --ks debug.keystore --ks-pass pass:android --out cakru.apk cakru-temp.apk
+          
+          # Buat keystore debug otomatis
+          keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey \
+            -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Cakru, O=Odfiz, C=ID"
+          
+          # Align dulu baru Sign (Standar Google)
+          $BUILD_TOOLS_PATH/zipalign -f 4 cakru-temp.apk cakru-aligned.apk
+          $BUILD_TOOLS_PATH/apksigner sign --ks debug.keystore \
+            --ks-pass pass:android \
+            --out cakru-final.apk cakru-aligned.apk
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Cakru-Dodge-Build
-          path: cakru.apk
+          name: Cakru-Dodge-Final-APK
+          path: cakru-final.apk
+
