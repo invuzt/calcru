@@ -5,8 +5,11 @@ use android_logger::Config;
 
 #[no_mangle]
 pub extern "C" fn rust_engine(input: *const c_char) -> *mut c_char {
+    // Inisialisasi logger agar tidak error saat dipanggil
     android_logger::init_once(
-        Config::default().with_max_level(LevelFilter::Trace).with_tag("CAKRU_RUST")
+        Config::default()
+            .with_max_level(LevelFilter::Trace)
+            .with_tag("CAKRU_RUST")
     );
 
     if input.is_null() {
@@ -16,7 +19,6 @@ pub extern "C" fn rust_engine(input: *const c_char) -> *mut c_char {
     let c_str = unsafe { CStr::from_ptr(input) };
     let input_str = c_str.to_str().unwrap_or("error");
     
-    // Simpan langkah-langkah log ke dalam String
     let mut log_ui = format!("[LOG: Menerima '{}']\n", input_str);
 
     let response = match input_str.to_lowercase().as_str() {
@@ -32,6 +34,10 @@ pub extern "C" fn rust_engine(input: *const c_char) -> *mut c_char {
             log_ui.push_str("[LOG: Mengecek Jadwal Maintenance...]\n");
             "Rust: Jadwal besok adalah shift pagi.".to_string()
         },
+        "bersih" => {
+            log_ui.push_str("[LOG: Menjalankan protokol pembersihan...]\n");
+            "Rust: Sistem telah dibersihkan!".to_string()
+        },
         _ => {
             log_ui.push_str("[LOG: Perintah tidak dikenal]\n");
             format!("Rust menerima: '{}'.", input_str)
@@ -39,11 +45,9 @@ pub extern "C" fn rust_engine(input: *const c_char) -> *mut c_char {
     };
 
     log_ui.push_str("[LOG: Selesai]\n---\n");
-    
-    // Gabungkan LOG + HASIL agar tampil di TextView Android
     let final_output = format!("{}{}", log_ui, response);
     
-    info!("{}", final_output); // Tetap kirim ke Logcat juga
+    info!("{}", final_output);
     CString::new(final_output).unwrap().into_raw()
 }
 

@@ -5,7 +5,8 @@ edition = "2021"
 
 [lib]
 name = "cakru_core"
-crate-type = ["staticlib"] # Kita buat static agar menyatu dengan C
+crate-type = ["staticlib"]
 
 [dependencies]
-# Tanpa dependencies berat dulu agar build cepat
+log = "0.4"
+android_logger = "0.13"
