@@ -1,29 +1,56 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
+use log::{info, LevelFilter};
+use android_logger::Config;
 
 #[no_mangle]
 pub extern "C" fn rust_engine(input: *const c_char) -> *mut c_char {
+    android_logger::init_once(
+        Config::default().with_max_level(LevelFilter::Trace).with_tag("CAKRU_RUST")
+    );
+
+    if input.is_null() {
+        return CString::new("[LOG: Error] Input NULL").unwrap().into_raw();
+    }
+
     let c_str = unsafe { CStr::from_ptr(input) };
     let input_str = c_str.to_str().unwrap_or("error");
+    
+    // Simpan langkah-langkah log ke dalam String
+    let mut log_ui = format!("[LOG: Menerima '{}']\n", input_str);
 
-    // Logika Utama: Tambahkan fitur di sini
     let response = match input_str.to_lowercase().as_str() {
-        "cek stok" => "Rust: Stok Odfiz saat ini ada 150 unit.".to_string(),
-        "halo" => "Rust: Halo Guru! Siap memproses data.".to_string(),
-        "bersih" => "Rust: Perintah pembersihan diterima!".to_string(),
-        "jadwal" => "Rust: Jadwal besok adalah Maintenance shift pagi.".to_string(),
-        _ => format!("Rust menerima input: '{}'. (Gunakan 'halo', 'cek stok', atau 'jadwal')", input_str),
+        "cek stok" => {
+            log_ui.push_str("[LOG: Mengakses Database Odfiz...]\n");
+            "Rust: Stok saat ini ada 150 unit.".to_string()
+        },
+        "halo" => {
+            log_ui.push_str("[LOG: Memulai Greeting...]\n");
+            "Rust: Halo Guru! Siap memproses data.".to_string()
+        },
+        "jadwal" => {
+            log_ui.push_str("[LOG: Mengecek Jadwal Maintenance...]\n");
+            "Rust: Jadwal besok adalah shift pagi.".to_string()
+        },
+        _ => {
+            log_ui.push_str("[LOG: Perintah tidak dikenal]\n");
+            format!("Rust menerima: '{}'.", input_str)
+        },
     };
 
-    // Mengubah String menjadi pointer C yang bisa dibaca JNI
-    CString::new(response).unwrap().into_raw()
+    log_ui.push_str("[LOG: Selesai]\n---\n");
+    
+    // Gabungkan LOG + HASIL agar tampil di TextView Android
+    let final_output = format!("{}{}", log_ui, response);
+    
+    info!("{}", final_output); // Tetap kirim ke Logcat juga
+    CString::new(final_output).unwrap().into_raw()
 }
 
 #[no_mangle]
 pub extern "C" fn rust_free_string(s: *mut c_char) {
     unsafe {
         if s.is_null() { return; }
-        // Mengambil kembali kepemilikan string agar Rust bisa menghapusnya dari RAM
         let _ = CString::from_raw(s);
     }
 }
