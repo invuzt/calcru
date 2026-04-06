@@ -5,13 +5,13 @@ import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import com.calcru.app.R;
 
 public class MainActivity extends Activity {
     static {
         System.loadLibrary("hello");
     }
 
-    // Satu-satunya pintu masuk ke Rust
     public native String prosesDiRust(String input);
 
     @Override
@@ -19,14 +19,14 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        EditText input = findViewById(R.id.input_teks);
-        Button btn = findViewById(R.id.btn_proses);
-        TextView output = findViewById(R.id.hasil_rust);
+        // ID harus sama persis dengan yang ada di XML
+        EditText input = findViewById(R.id.input_ai);
+        Button btn = findViewById(R.id.btn_kirim);
+        TextView output = findViewById(R.id.output_ai);
 
         btn.setOnClickListener(v -> {
-            String teksUser = input.getText().toString();
-            // Kirim ke JNI -> Rust
-            String hasil = prosesDiRust(teksUser);
+            String teks = input.getText().toString();
+            String hasil = prosesDiRust(teks);
             output.setText(hasil);
         });
     }

@@ -1,72 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F7"
-    android:padding="16dp">
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="#F0F2F5">
 
     <TextView
-        android:id="@+id/header_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Calcru AI"
-        android:textSize="28sp"
+        android:textSize="24sp"
         android:textStyle="bold"
         android:textColor="#1A237E"
-        android:layout_alignParentTop="true"
-        android:layout_centerHorizontal="true"
-        android:paddingBottom="16dp"/>
+        android:layout_marginBottom="20dp"/>
 
-    <ScrollView
-        android:id="@+id/output_scroll"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_below="@id/header_title"
-        android:layout_above="@+id/input_area"
-        android:background="#FFFFFF"
-        android:layout_marginBottom="16dp"
-        android:padding="12dp"
-        android:elevation="2dp">
-        
-        <TextView
-            android:id="@+id/output_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Halo! Tanya saya apa saja tentang matematika, coding, atau pengetahuan umum. Saya berjalan sepenuhnya di HP kamu."
-            android:textSize="16sp"
-            android:textColor="#333333" />
-    </ScrollView>
-
-    <LinearLayout
-        android:id="@+id/input_area"
+    <EditText
+        android:id="@+id/input_ai"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
+        android:hint="Tanya sesuatu..."
+        android:background="@android:drawable/editbox_background"
+        android:padding="12dp"
+        android:layout_marginBottom="10dp"/>
+
+    <Button
+        android:id="@+id/btn_kirim"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Kirim ke AI"
+        android:backgroundTint="#1A237E"
+        android:textColor="#FFFFFF" />
+
+    <TextView
+        android:id="@+id/output_ai"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="20dp"
+        android:padding="15dp"
         android:background="#FFFFFF"
-        android:elevation="4dp"
-        android:padding="8dp">
+        android:elevation="2dp"
+        android:text="Respons AI akan muncul di sini..."
+        android:textSize="16sp" />
 
-        <EditText
-            android:id="@+id/input_text"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="Tanya sesuatu..."
-            android:background="@android:color/transparent"
-            android:padding="10dp"
-            android:textSize="16sp"/>
-
-        <Button
-            android:id="@+id/btn_proses"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Kirim"
-            android:backgroundTint="#1A237E"
-            android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:elevation="2dp" />
-    </LinearLayout>
-
-</RelativeLayout>
+</LinearLayout>
