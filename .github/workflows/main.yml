@@ -10,17 +10,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android
+#      - name: Install Rust
+#        uses: dtolnay/rust-toolchain@stable
+#        with:
+#          targets: aarch64-linux-android
 
-      - name: Build Rust Core
-        run: |
-          cd rust_logic
-          cargo build --target aarch64-linux-android --release
-          mkdir -p ../jni
-          cp target/aarch64-linux-android/release/libcakru_core.a ../jni/
+#      - name: Build Rust Core
+#        run: |
+#          cd rust_logic
+#          cargo build --target aarch64-linux-android --release
+#          mkdir -p ../jni
+#          cp target/aarch64-linux-android/release/libcakru_core.a ../jni/
 
       - name: Build Native Code (NDK)
         run: |
