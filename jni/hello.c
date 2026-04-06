@@ -1,37 +1,27 @@
 #include <jni.h>
-#include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <android/log.h>
 
-#define LOG_TAG "CalcruAI_JNI"
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+char selected_model_path[512] = "";
 
-// Fungsi simulasi AI sederhana
-char* simulasi_ai(const char* input) {
-    if (strstr(input, "siapa")) {
-        return "Saya Calcru AI, asisten matematika lokal kamu.";
-    } else if (strstr(input, "halo") || strstr(input, "hai")) {
-        return "Halo! Ada yang bisa saya bantu hari ini?";
-    } else if (strstr(input, "matematika")) {
-        return "Tentu! Berikan soalnya (misal: integral x^2 dx).";
-    } else {
-        return "Pertanyaan menarik! Sayangnya, mode AI penuh memerlukan model Gemma-2b yang berukuran 2GB. Untuk saat ini, saya hanya bisa merespons sapaan sederhana.";
-    }
+JNIEXPORT void JNICALL
+Java_com_cakru_dodge_MainActivity_setModelPath(JNIEnv *env, jobject thiz, jstring path) {
+    const char *native_path = (*env)->GetStringUTFChars(env, path, NULL);
+    strncpy(selected_model_path, native_path, 511);
+    (*env)->ReleaseStringUTFChars(env, path, native_path);
+    __android_log_print(ANDROID_LOG_INFO, "CalcruJNI", "Model Path Set: %s", selected_model_path);
 }
 
 JNIEXPORT jstring JNICALL
 Java_com_cakru_dodge_MainActivity_prosesDiRust(JNIEnv *env, jobject thiz, jstring input) {
-    // 1. Ambil String Input dari Java
-    const char *in_str = (*env)->GetStringUTFChars(env, input, NULL);
-    if (in_str == NULL) return NULL;
-    __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "Input: %s", in_str);
-
-    // 2. Jalankan Logika Simulasi AI
-    char *respons_ai = simulasi_ai(in_str);
-    jstring result = (*env)->NewStringUTF(env, respons_ai);
-
-    // 3. Bersihkan memori
-    (*env)->ReleaseStringUTFChars(env, input, in_str);
+    if (strlen(selected_model_path) == 0) {
+        return (*env)->NewStringUTF(env, "Error: Pilih model dulu via ikon Gear!");
+    }
     
-    return result;
+    // Nanti di sini tempat mesin AI (Candle/Llama.cpp) bekerja membaca selected_model_path
+    char response[600];
+    sprintf(response, "Menggunakan model: %s\n\nAI lokal belum disuntikkan sepenuhnya, tapi path file sudah siap diproses oleh mesin Rust.", selected_model_path);
+    
+    return (*env)->NewStringUTF(env, response);
 }
