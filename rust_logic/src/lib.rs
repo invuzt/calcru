@@ -21,17 +21,40 @@ fn parse_expression(tokens: &[char], pos: &mut usize) -> Result<f64, String> {
 }
 
 fn parse_term(tokens: &[char], pos: &mut usize) -> Result<f64, String> {
-    let mut val = parse_factor(tokens, pos)?;
+    let mut val = parse_power(tokens, pos)?;
     while *pos < tokens.len() {
         match tokens[*pos] {
-            '*' => { *pos += 1; val *= parse_factor(tokens, pos)?; }
+            '*' => { *pos += 1; val *= parse_power(tokens, pos)?; }
             '/' => {
                 *pos += 1;
-                let divisor = parse_factor(tokens, pos)?;
+                let divisor = parse_power(tokens, pos)?;
                 if divisor == 0.0 { return Err("Div by zero".to_string()); }
                 val /= divisor;
             }
             _ => break,
+        }
+    }
+    Ok(val)
+}
+
+fn parse_power(tokens: &[char], pos: &mut usize) -> Result<f64, String> {
+    let mut val = parse_factor(tokens, pos)?;
+    while *pos < tokens.len() && tokens[*pos] == '^' {
+        *pos += 1;
+        if *pos < tokens.len() && tokens[*pos] == '^' {
+            *pos += 1;
+            let times = parse_factor(tokens, pos)? as u32;
+            let base = val;
+            if times == 0 { val = 1.0; }
+            else {
+                for _ in 1..times {
+                    val = base.powf(val);
+                    if val.is_infinite() { return Err("Tetration Overflow".to_string()); }
+                }
+            }
+        } else {
+            let exponent = parse_power(tokens, pos)?;
+            val = val.powf(exponent);
         }
     }
     Ok(val)
@@ -66,13 +89,13 @@ pub extern "C" fn rust_engine(input: *const c_char) -> *mut c_char {
     if input.is_null() { return CString::new("[ERROR] Input NULL").unwrap().into_raw(); }
     let c_str = unsafe { CStr::from_ptr(input) };
     let input_str = c_str.to_str().unwrap_or("");
-    let calc_result = if input_str.is_empty() { "Input expression...".to_string() } else {
+    let calc_result = if input_str.is_empty() { "Format: 2^3 atau 2^^3".to_string() } else {
         match eval(input_str) {
             Ok(res) => format!("Result: {}", res),
             Err(e) => format!("Error: {}", e),
         }
     };
-    let final_output = format!("=== SMART CALC ===\nInput: {}\n{}\nRuntime: {:?}\n==================", input_str, calc_result, start_time.elapsed());
+    let final_output = format!("=== SMART CALC V2.1 ===\nInput: {}\n{}\nRuntime: {:?}\n==================", input_str, calc_result, start_time.elapsed());
     CString::new(final_output).unwrap().into_raw()
 }
 
