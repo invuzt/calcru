@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
-import com.calcru.app.R;
 
 public class MainActivity extends Activity {
     static {
@@ -19,7 +18,6 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // ID harus sama persis dengan yang ada di XML
         EditText input = findViewById(R.id.input_ai);
         Button btn = findViewById(R.id.btn_kirim);
         TextView output = findViewById(R.id.output_ai);
